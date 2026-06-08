@@ -1,0 +1,73 @@
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+config/config.yaml
+!config/exampleconfig.yaml
+*.local
+*.secret
+secrets/
+
+# Go build outputs
+/goproxy
+/gateway
+/gateway-cli
+/cli
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+coverage.out
+coverage.html
+
+# Go workspace/module local state
+go.work
+go.work.sum
+
+# Test, benchmark, and profiling artifacts
+*.prof
+*.pprof
+*.trace
+cpu.out
+mem.out
+bench.out
+
+# Logs and runtime state
+*.log
+logs/
+tmp/
+temp/
+.tmp/
+*.pid
+
+# TLS certificates and keys generated for local runs
+*.pem
+*.crt
+*.key
+*.csr
+pki/
+certs/
+
+# Docker and local database volumes
+postgres-data/
+redis-data/
+data/
+docker-compose.override.yml
+
+# Editor and OS files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Codex/local agent metadata
+.agents/
+.codex/
+
+
+PROJECT_PLAN.md

@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>goproxy dashboard</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f5f6f8;
+        --panel: #ffffff;
+        --text: #182026;
+        --muted: #66727d;
+        --line: #dbe1e7;
+        --head: #eef2f5;
+        --ok: #16794c;
+        --bad: #b42318;
+        --accent: #225c9f;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: var(--text);
+        background: var(--bg);
+      }
+      main {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 28px 20px 40px;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 20px;
+      }
+      h1 {
+        margin: 0;
+        font-size: 24px;
+        line-height: 1.2;
+      }
+      .toolbar {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      input {
+        height: 34px;
+        min-width: 240px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 0 10px;
+        background: white;
+      }
+      button {
+        height: 34px;
+        border: 1px solid #1d4f89;
+        border-radius: 6px;
+        background: var(--accent);
+        color: white;
+        padding: 0 12px;
+        font-weight: 650;
+        cursor: pointer;
+      }
+      button.secondary {
+        background: white;
+        color: var(--accent);
+      }
+      section {
+        margin-top: 20px;
+      }
+      h2 {
+        margin: 0 0 10px;
+        font-size: 16px;
+      }
+      .status {
+        min-height: 20px;
+        margin-bottom: 12px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: var(--panel);
+        border: 1px solid var(--line);
+      }
+      th,
+      td {
+        padding: 11px 12px;
+        border-bottom: 1px solid #e8edf2;
+        text-align: left;
+        font-size: 14px;
+        vertical-align: top;
+      }
+      th {
+        background: var(--head);
+        font-weight: 700;
+      }
+      tr:last-child td { border-bottom: 0; }
+      .pill {
+        display: inline-block;
+        min-width: 72px;
+        padding: 3px 8px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
+        text-align: center;
+      }
+      .ok {
+        color: var(--ok);
+        background: #e8f5ee;
+      }
+      .bad {
+        color: var(--bad);
+        background: #fdeceb;
+      }
+      @media (max-width: 720px) {
+        header {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+        input {
+          min-width: 0;
+          width: 100%;
+        }
+        .toolbar {
+          width: 100%;
+        }
+        button {
+          flex: 1;
+        }
+        table {
+          display: block;
+          overflow-x: auto;
+          white-space: nowrap;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>goproxy dashboard</h1>
+        <div class="toolbar">
+          <input id="admin-token" type="password" autocomplete="off" placeholder="Admin token">
+          <button class="secondary" id="refresh">Refresh</button>
+          <button id="reload">Reload</button>
+        </div>
+      </header>
+
+      <div class="status" id="status"></div>
+
+      <section>
+        <h2>Route metrics</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Route</th>
+              <th>Requests</th>
+              <th>Errors</th>
+              <th>Error rate</th>
+              <th>p50 latency</th>
+              <th>p95 latency</th>
+            </tr>
+          </thead>
+          <tbody id="routes"></tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>Upstreams</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Route</th>
+              <th>Target</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="upstreams"></tbody>
+        </table>
+      </section>
+    </main>
+    <script>
+      const status = document.getElementById("status");
+      const routesBody = document.getElementById("routes");
+      const upstreamsBody = document.getElementById("upstreams");
+      const tokenInput = document.getElementById("admin-token");
+
+      tokenInput.value = localStorage.getItem("goproxy.adminToken") || "";
+      tokenInput.addEventListener("input", () => {
+        localStorage.setItem("goproxy.adminToken", tokenInput.value);
+      });
+
+      function tokenHeaders() {
+        return tokenInput.value ? { Authorization: `Bearer ${tokenInput.value}` } : {};
+      }
+
+      async function loadMetrics() {
+        const response = await fetch("/analytics/routes");
+        if (!response.ok) throw new Error(`/analytics/routes ${response.status}`);
+        const routes = await response.json();
+        routesBody.innerHTML = "";
+        for (const route of routes) {
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>${escapeHTML(route.route_id)}</td>
+            <td>${route.request_count}</td>
+            <td>${route.error_count}</td>
+            <td>${(route.error_rate * 100).toFixed(1)}%</td>
+            <td>${route.p50_latency_ms} ms</td>
+            <td>${route.p95_latency_ms} ms</td>
+          `;
+          routesBody.appendChild(row);
+        }
+      }
+
+      async function loadUpstreams() {
+        const response = await fetch("/admin/upstreams", { headers: tokenHeaders() });
+        if (!response.ok) {
+          upstreamsBody.innerHTML = "";
+          return;
+        }
+        const routes = await response.json();
+        upstreamsBody.innerHTML = "";
+        for (const [routeID, upstreams] of Object.entries(routes)) {
+          for (const upstream of upstreams) {
+            const row = document.createElement("tr");
+            const state = upstream.healthy ? "healthy" : "unhealthy";
+            row.innerHTML = `
+              <td>${escapeHTML(routeID)}</td>
+              <td>${escapeHTML(upstream.target)}</td>
+              <td><span class="pill ${upstream.healthy ? "ok" : "bad"}">${state}</span></td>
+            `;
+            upstreamsBody.appendChild(row);
+          }
+        }
+      }
+
+      async function refresh() {
+        try {
+          await Promise.all([loadMetrics(), loadUpstreams()]);
+          status.textContent = `Updated ${new Date().toLocaleTimeString()}`;
+        } catch (error) {
+          status.textContent = error.message;
+        }
+      }
+
+      async function reloadGateway() {
+        const response = await fetch("/admin/reload", {
+          method: "POST",
+          headers: tokenHeaders()
+        });
+        if (!response.ok) throw new Error(`/admin/reload ${response.status}`);
+        await refresh();
+      }
+
+      function escapeHTML(value) {
+        return String(value).replace(/[&<>"']/g, (char) => ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#39;"
+        })[char]);
+      }
+
+      document.getElementById("refresh").addEventListener("click", refresh);
+      document.getElementById("reload").addEventListener("click", async () => {
+        try {
+          await reloadGateway();
+          status.textContent = "Reloaded";
+        } catch (error) {
+          status.textContent = error.message;
+        }
+      });
+
+      refresh();
+      setInterval(refresh, 5000);
+    </script>
+  </body>
+</html>

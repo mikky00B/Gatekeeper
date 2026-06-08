@@ -1,0 +1,86 @@
+# Example goproxy configuration.
+# Copy this file to config/config.yaml for local use, then adjust values for
+# your environment. Prefer *_env or *_file fields for secrets.
+
+server:
+  address: ":8080"
+  read_timeout: 10s
+  write_timeout: 30s
+  shutdown_timeout: 10s
+  tls:
+    enabled: false
+    cert_file: ""
+    key_file: ""
+
+proxy:
+  upstream: "http://localhost:3000"
+
+database:
+  enabled: false
+  driver: "postgres"
+  dsn_env: "GATEWAY_DB_DSN"
+  dsn_file: ""
+
+redis:
+  enabled: false
+  address: "localhost:6379"
+  password: ""
+  db: 0
+
+hot_reload:
+  enabled: true
+  interval: 2s
+
+admin:
+  enabled: false
+  token_env: "GATEWAY_ADMIN_TOKEN"
+  token_file: ""
+
+jwt:
+  secret_env: "GATEWAY_JWT_SECRET"
+  secret_file: ""
+  issuer: "goproxy"
+  audience: "api"
+
+analytics:
+  enabled: true
+  persistent: false
+  window: 1h
+
+routes:
+  - id: "public-api"
+    path_prefix: "/api"
+    methods: ["GET", "POST"]
+    strip_prefix: true
+    upstreams:
+      - "http://localhost:3000"
+      - "http://localhost:3001"
+    require_auth: false
+    require_jwt: false
+    rate_limit_capacity: 60
+    rate_limit_refill_per_second: 1
+    health_check:
+      enabled: false
+      path: "/healthz"
+      interval: 5s
+      timeout: 2s
+
+  - id: "private-api"
+    path_prefix: "/private"
+    methods: ["GET", "POST", "PUT", "DELETE"]
+    strip_prefix: true
+    upstream_env: "PRIVATE_API_UPSTREAM"
+    require_auth: true
+    require_jwt: false
+    rate_limit_capacity: 120
+    rate_limit_refill_per_second: 2
+    health_check:
+      enabled: true
+      path: "/healthz"
+      interval: 5s
+      timeout: 2s
+
+api_keys:
+  - id: "local-dev"
+    key_env: "LOCAL_API_KEY"
+    tenant: "local"
