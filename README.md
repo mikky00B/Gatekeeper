@@ -1,4 +1,4 @@
-# goproxy
+# Gatekeeper
 
 A self-hosted API gateway in Go. It provides config-driven reverse proxy routing, multiple upstreams per route, round-robin load balancing, optional upstream health checks, API key authentication, optional HS256 JWT verification, in-memory or Redis-backed rate limiting, request logging, route-level analytics, hot config reload, TLS, an admin API, a static dashboard, and CLI helpers.
 
